@@ -93,6 +93,12 @@ class Tree[T] {
 
   def removeNode(node: TreeNode): Boolean = {
     positionByNode.get(node).exists { position =>
+      getNode(position.parent).foreach { parentNode =>
+        tree.get(parentNode).foreach { parentChildren =>
+          parentChildren -= node
+        }
+      }
+      tree.remove(node)
       removeNodeListByLevel(node)
       removeChild(node, position.parent)
       removePosition(node, position)
