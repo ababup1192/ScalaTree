@@ -17,10 +17,10 @@ class Tree[T] {
   val rootNode = RootNode
   val tree = HashMap[TreeNode, ListBuffer[TreeNode]](rootNode -> ListBuffer())
 
-  private[this] val positionByNode = HashMap[TreeNode, NodePosition](rootNode -> NodePosition.ROOT)
-  private[this] val nodeByPosition = positionByNode.map(_ swap)
-  private[this] val childrenByPosition = HashMap[NodePosition, ListBuffer[TreeNode]]()
-  private[this] val nodeListByLevel = HashMap[Int, ListBuffer[TreeNode]](0 -> ListBuffer(rootNode))
+  protected[this] val positionByNode = HashMap[TreeNode, NodePosition](rootNode -> NodePosition.ROOT)
+  protected[this] val nodeByPosition = positionByNode.map(_ swap)
+  protected[this] val childrenByPosition = HashMap[NodePosition, ListBuffer[TreeNode]]()
+  protected[this] val nodeListByLevel = HashMap[Int, ListBuffer[TreeNode]](0 -> ListBuffer(rootNode))
 
   /**
    * Make node and add a new node to a tree as a root node children
