@@ -1,33 +1,33 @@
 package org.ababup1192
 
-import scala.collection.mutable.{ArrayBuffer, OpenHashMap => HashMap}
+import scala.collection.mutable.{ListBuffer, OpenHashMap => HashMap}
 
-sealed trait Node
+sealed trait TreeNode
 
-case object RootNode extends Node
+case object RootNode extends TreeNode
 
-case class ElementNode[T](value: T) extends Node
+case class ElementNode[T](value: T) extends TreeNode
 
 /**
  * Tree data structure
- * @tparam T Node type
+ * @tparam T TreeNode type
  */
 class Tree[T] {
 
   val rootNode = RootNode
-  val tree = HashMap[Node, ArrayBuffer[Node]](rootNode -> ArrayBuffer())
+  val tree = HashMap[TreeNode, ListBuffer[TreeNode]](rootNode -> ListBuffer())
 
-  private[this] val positionByNode = HashMap[Node, NodePosition](rootNode -> NodePosition.ROOT)
+  private[this] val positionByNode = HashMap[TreeNode, NodePosition](rootNode -> NodePosition.ROOT)
   private[this] val nodeByPosition = positionByNode.map(_ swap)
-  private[this] val childrenByPosition = HashMap[NodePosition, ArrayBuffer[Node]]()
-  private[this] val nodeListByLevel = HashMap[Int, ArrayBuffer[Node]](0 -> ArrayBuffer(rootNode))
+  private[this] val childrenByPosition = HashMap[NodePosition, ListBuffer[TreeNode]]()
+  private[this] val nodeListByLevel = HashMap[Int, ListBuffer[TreeNode]](0 -> ListBuffer(rootNode))
 
   /**
    * Make node and add a new node to a tree as a root node children
    * @param value node content
-   * @return new node
+   * @return new TreeNode
    */
-  def add(value: T): Node = {
+  def add(value: T): TreeNode = {
     add(value, rootNode)
   }
 
@@ -37,7 +37,7 @@ class Tree[T] {
    * @param parentNode a parent node of a new node
    * @return new node
    */
-  def add(value: T, parentNode: Node): Node = {
+  def add(value: T, parentNode: TreeNode): TreeNode = {
     val node = ElementNode(value)
     addNode(node, parentNode)
     node
@@ -49,10 +49,14 @@ class Tree[T] {
    * @param parentPosition a parent position of a new node
    * @return new node
    */
-  def add(value: T, parentPosition: NodePosition): Node = {
+  def add(value: T, parentPosition: NodePosition): TreeNode = {
     val node = ElementNode(value)
     addNode(node, parentPosition)
     node
+  }
+
+  def getNode(position: NodePosition): Option[TreeNode] = {
+    nodeByPosition.get(position)
   }
 
   /**
@@ -60,33 +64,39 @@ class Tree[T] {
    * @param node new node
    * @param parentNode a parent node of a new node
    */
-  protected def addNode(node: Node, parentNode: Node): Unit = {
+  protected def addNode(node: TreeNode, parentNode: TreeNode): Unit = {
     getPosition(parentNode).foreach { parentPosition =>
       val newLabel = tree.get(parentNode).map { nodeList =>
         nodeList += node
         nodeList.size - 1
       }.getOrElse {
-        tree.put(parentNode, ArrayBuffer(node))
+        tree.put(parentNode, ListBuffer(node))
         0
       }
       addPosition(node, parentPosition.child(newLabel))
-      addChildren(node, parentPosition)
+      addChild(node, parentPosition)
       addNodeListByLevel(node)
     }
   }
 
-  def getNode(position: NodePosition): Option[Node] = {
-    nodeByPosition.get(position)
-  }
 
   /**
    * Add a new node to a tree as children of an assigned node
    * @param node new node
    * @param parentPosition a parent position of a new node
    */
-  protected def addNode(node: Node, parentPosition: NodePosition): Unit = {
+  protected def addNode(node: TreeNode, parentPosition: NodePosition): Unit = {
     getNode(parentPosition).foreach { parentNode =>
       addNode(node, parentNode)
+    }
+  }
+
+  def removeNode(node: TreeNode): Boolean = {
+    positionByNode.get(node).exists { position =>
+      removeNodeListByLevel(node)
+      removeChild(node, position.parent)
+      removePosition(node, position)
+      true
     }
   }
 
@@ -95,7 +105,7 @@ class Tree[T] {
    * @param node Node
    * @return an optional value of a node position
    */
-  def getPosition(node: Node): Option[NodePosition] = {
+  def getPosition(node: TreeNode): Option[NodePosition] = {
     positionByNode.get(node)
   }
 
@@ -105,18 +115,22 @@ class Tree[T] {
    * @param node Node
    * @param position NodePosition
    */
-  protected def addPosition(node: Node, position: NodePosition): Unit = {
+  protected def addPosition(node: TreeNode, position: NodePosition): Unit = {
     positionByNode.put(node, position)
     nodeByPosition.put(position, node)
   }
 
+  protected def removePosition(node: TreeNode, position: NodePosition): Unit = {
+    positionByNode.remove(node)
+    nodeByPosition.remove(position)
+  }
 
-  def getParent(position: NodePosition): Option[Node] = {
+  def getParent(position: NodePosition): Option[TreeNode] = {
     val parentPosition = position.parent
     nodeByPosition.get(parentPosition)
   }
 
-  def getParent(node: Node): Option[Node] = {
+  def getParent(node: TreeNode): Option[TreeNode] = {
     getPosition(node).map { position =>
       val parentPosition = position.parent
       nodeByPosition.get(parentPosition)
@@ -125,50 +139,56 @@ class Tree[T] {
     }
   }
 
-  def getChildren(position: NodePosition): ArrayBuffer[Node] = {
+  def getChildren(position: NodePosition): List[TreeNode] = {
     childrenByPosition.get(position).map { children =>
-      children
+      children.toList
     }.getOrElse {
-      ArrayBuffer.empty[Node]
+      List.empty[TreeNode]
     }
   }
 
-  def getChildren(node: Node): ArrayBuffer[Node] = {
+  def getChildren(node: TreeNode): List[TreeNode] = {
     getPosition(node).map { position =>
       childrenByPosition.get(position).map { children =>
-        children
+        children.toList
       }.getOrElse {
-        ArrayBuffer.empty[Node]
+        List.empty[TreeNode]
       }
     }.getOrElse {
-      ArrayBuffer.empty[Node]
+      List.empty[TreeNode]
     }
   }
 
-  protected def addChildren(node: Node, position: NodePosition): Unit = {
+  protected def addChild(node: TreeNode, position: NodePosition): Unit = {
     childrenByPosition.get(position).map { children =>
       children += node
     }.getOrElse {
-      childrenByPosition.put(position, ArrayBuffer(node))
+      childrenByPosition.put(position, ListBuffer(node))
     }
   }
 
-  def getSibling(node: Node): ArrayBuffer[Node] = {
+  protected def removeChild(node: TreeNode, position: NodePosition): Unit = {
+    childrenByPosition.get(position).foreach { children =>
+      children -= node
+    }
+  }
+
+  def getSibling(node: TreeNode): List[TreeNode] = {
     getParent(node).map { parentNode =>
       getChildren(parentNode)
     }.getOrElse {
-      ArrayBuffer.empty[Node]
+      List.empty[TreeNode]
     }
   }
 
-  def getSibling(position: NodePosition): ArrayBuffer[Node] = {
+  def getSibling(position: NodePosition): List[TreeNode] = {
     val parentPosition = position.parent
     getChildren(parentPosition)
   }
 
   def maxLevel: Int = nodeListByLevel.keys.max
 
-  def getLevel(node: Node): Int = {
+  def getLevel(node: TreeNode): Int = {
     getPosition(node).map(_.level).getOrElse(0)
   }
 
@@ -176,18 +196,35 @@ class Tree[T] {
     position.level
   }
 
-  protected def addNodeListByLevel(node: Node): Unit = {
+  def getNodeListByLevel(level: Int): List[TreeNode] = {
+    nodeListByLevel.get(level).map { nodeList =>
+      nodeList.toList
+    }.getOrElse {
+      List.empty[TreeNode]
+    }
+  }
+
+  protected def addNodeListByLevel(node: TreeNode): Unit = {
     positionByNode.get(node).foreach { position =>
       val level = position.level
       nodeListByLevel.get(level).map { nodeList =>
         nodeList += node
       }.getOrElse {
-        nodeListByLevel.put(level, ArrayBuffer(node))
+        nodeListByLevel.put(level, ListBuffer(node))
       }
     }
   }
 
-  def printNodeWithPosition(node: Node): Unit = {
+  protected def removeNodeListByLevel(node: TreeNode): Unit = {
+    positionByNode.get(node).foreach { position =>
+      val level = position.level
+      nodeListByLevel.get(level).foreach { nodeList =>
+        nodeList -= node
+      }
+    }
+  }
+
+  def printNodeWithPosition(node: TreeNode): Unit = {
     positionByNode.get(node).foreach { position =>
       println(node, position)
     }
